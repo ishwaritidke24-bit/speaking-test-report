@@ -1,42 +1,51 @@
-function feedback(score) {
-  if (score >= 8)
-    return "Excellent performance with strong control. Demonstrates confidence, clarity, and consistency throughout.";
-  if (score >= 6)
-    return "Good performance with minor inaccuracies. Communication is clear though some improvements are needed.";
-  return "Needs improvement. Errors frequently affect clarity and overall effectiveness.";
+function getFeedback(score) {
+  if (score >= 8) return "Excellent performance with strong control.";
+  if (score >= 6) return "Good performance with minor inaccuracies.";
+  return "Needs improvement.";
+}
+
+function setBar(bar, score, maxScore = 9) {
+  if (!bar) return; 
+  const width = (score / maxScore) * 100;
+  bar.style.width = width + "%";
 }
 
 fetch("/api/report")
-  .then(res => res.json())
+  .then(res => {
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    return res.json();
+  })
   .then(data => {
-    overallFeedback.innerText = data.descriptiveFeedback.overall.text;
-    pronFeedback.innerText = data.descriptiveFeedback.pronunciation.text;
-    fluencyFeedback.innerText = data.descriptiveFeedback.fluency.text;
-    vocabFeedback.innerText = data.descriptiveFeedback.vocabulary.text;
-    grammarFeedback.innerText = data.descriptiveFeedback.grammar.text;
-  });
+    console.log("Received data:", data); 
 
-fetch("/api/report")
-  .then(res => res.json())
-  .then(data => {
-    const s = data.scores;
+    const studentNameEl = document.getElementById("studentName");
+    const testDateEl = document.getElementById("testDate");
+    const overallScoreEl = document.getElementById("overallScore");
 
-    document.getElementById("overallScore").innerText = s.overall + "/9";
+    if (studentNameEl) studentNameEl.innerText = data?.student?.name || "N/A";
+    if (testDateEl) testDateEl.innerText = data?.student?.testDate || "N/A";
+    if (overallScoreEl) overallScoreEl.innerText = (data?.score?.band ?? 0) + "/9";
 
-    document.getElementById("pBar").style.width = (s.pronunciation / 9) * 100 + "%";
-    document.getElementById("fBar").style.width = (s.fluency / 9) * 100 + "%";
-    document.getElementById("vBar").style.width = (s.vocabulary / 9) * 100 + "%";
-    document.getElementById("gBar").style.width = (s.grammar / 9) * 100 + "%";
+    const skills = [
+      ["p", data?.breakdown?.pronunciation?.score ?? 0],
+      ["f", data?.breakdown?.fluency?.score ?? 0],
+      ["v", data?.breakdown?.vocabulary?.score ?? 0],
+      ["g", data?.breakdown?.grammar?.score ?? 0]
+    ];
 
-    overallVal.innerText = s.overall;
-    pVal.innerText = s.pronunciation;
-    fVal.innerText = s.fluency;
-    vVal.innerText = s.vocabulary;
-    gVal.innerText = s.grammar;
+    skills.forEach(([key, score]) => {
+      const scoreEl = document.getElementById(key + "Score");
+      const barEl = document.getElementById(key + "Bar");
+      const feedbackEl = document.getElementById(key + "Feedback");
 
-    overallText.innerText = feedback(s.overall);
-    pText.innerText = feedback(s.pronunciation);
-    fText.innerText = feedback(s.fluency);
-    vText.innerText = feedback(s.vocabulary);
-    gText.innerText = feedback(s.grammar);
+      if (scoreEl) scoreEl.innerText = score + "/9";
+      setBar(barEl, score); // safely set bar width
+      if (feedbackEl) feedbackEl.innerText = getFeedback(score);
+    });
+  })
+  .catch(err => {
+    console.error("Failed to fetch report:", err);
+    alert("Could not load report. Please try again later.");
   });
